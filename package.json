@@ -1,0 +1,17 @@
+{
+  "name": "tpintegradorm3y4",
+  "version": "1.0.0",
+  "description": "conexion base de datos y tablas",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app"
+  },
+  "author": "GrupoP-M",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.17.1",
+    "handlebar": "^1.0.0",
+    "jsonwebtoken": "^8.5.1",
+    "mysql": "^2.18.1"
+  }
+}
