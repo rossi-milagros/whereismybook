@@ -98,7 +98,7 @@ CREATE TABLE `personas` (
 INSERT INTO `personas` (`id`, `nombre`, `apellido`, `alias`, `email`) VALUES
 (1, 'MILAGROS', 'ROSSI', 'MILI', 'RCMILY@GMAIL.COM'),
 (2, 'JUAN', 'PEREZ', 'JUAN', 'JUANPEREZ@GMAIL.COM'),
-(3, 'LUCIANO', 'PERERYRA', 'LUCHO', 'LUCHO123@GMAIL.COM');
+(3, 'LUCIANO', 'PEREYRA', 'LUCHO', 'LUCHO123@GMAIL.COM');
 
 --
 -- Índices para tablas volcadas
