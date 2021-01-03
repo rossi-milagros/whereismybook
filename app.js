@@ -37,118 +37,219 @@ const qy= util.promisify(conexion.query).bind(conexion);
 
 //MIDDLEWARES
 
-app.put('/libro/:id', async(req,res,next)=>{
+app.post('/libro', async (req, res) =>{
+
     try {
+
+        if(!req.body.nombre || !req.body.categoria_id) {
+            res.status(413).send("El nombre y la categoria son obligatorios")
+        }
+
+        //Hacemos comprobaciones en la BD
+        let searchLibro = 'SELECT id FROM libros WHERE nombre = ?';
+        let searchPersona = 'SELECT nombre FROM personas WHERE id = ?';
+        let searchCategoria = 'SELECT nombre FROM categorias WHERE id = ?';
+
+        let resLibro = await qy(searchLibro, [req.body.nombre.toUpperCase()]);
+        let resPersona = await qy(searchPersona, [req.body.persona_id]);
+        let resCategoria = await qy(searchCategoria, [req.body.categoria_id]);
+
+        if (resPersona.length > 0) {
+
+            if(resCategoria.length > 0) {
+
+                if (resLibro.length > 0) {
+                    res.status(413).send("El libro ya existe en la BD");
+                }
+                else {
+                    
+                    let query = 'INSERT INTO libros (nombre,descripcion,categoria_id,persona_id) VALUES (?,?,?,?)';
+                    let respuesta = qy(query, [req.body.nombre.toUpperCase(),req.body.descripcion.toUpperCase(),req.body.categoria_id,req.body.persona_id]);
+
+                    res.status(200).send({"respuesta": respuesta});
+                    
+                }
+            }
+            else {
+                res.status(413).send("La categoria indicada no existe en la BD");
+            }
+        }
+        else {
+            res.status(413).send("La persona indicada no existe en la BD");
+        }
         
-        if (!req.body.nombre) {
-            throw new Error("No escribiste el titulo del libro");
+    }
+    catch(ex) {
+        console.log(ex);
+        res.status(413).send({"Error": ex.message});
+    }
+});
+
+app.get('/libro', async (req, res) => {
+
+    try{
+        const query = 'SELECT * FROM libros';
+        const respuesta = await qy(query);
+
+        res.status(200).send({"respuesta": respuesta});
+    }
+    catch(ex){
+        console.log(ex);
+        res.status(413).send({mensaje: ex.message});
+    }
+});
+
+app.get('/libro/:id', async (req, res) => {
+
+    try{
+
+        if (!req.params.id) {
+           res.status(413).send("Es necesario indicar el número ID"); 
+        }
+        else {
+            const query = 'SELECT * FROM libros WHERE id = ?';
+            const respuesta = await qy(query, [req.params.id]);
+
+            if (respuesta.length > 0) {
+                res.send({"respuesta": respuesta});
+            }
+            else {
+                res.status(413).send("No hay un libro con el ID indicado");
+            }
+        }
+    }
+
+    catch(ex){
+        console.log(ex);
+        res.status(413).send({"Error": ex.message});
+    }
+});
+
+
+app.put('/libro/:id', async (req,res) => {
+    try {
+       
+        if (!req.body.descripcion) {
+            res.status(413).send("No escribiste la descripcion del libro");
         }
 
-        let query='SELECT * FROM `libros` WHERE `nombre`= ? AND `id` <> ?';
-        let respuesta = await qy(query, [req.body.nombre, req.params.id]);
+        let query = 'UPDATE libros SET descripcion = ? WHERE id = ?';
+        let respuesta = await qy(query, [req.body.descripcion.toUpperCase(), req.params.id]);
+        res.status(200).send(respuesta);
+        
+    }
+    catch(ex){
+        console.error(ex.message);
+        res.status(413).send({"Error": ex.message});
+    }
+});
 
-        if (respuesta.length>0) {
-            throw new Error('Ese libro ya esta en tu biblioteca, agrega otro titulo');
-        }
 
-        let descripcion= '';
-        if (req.body.descripcion) {
-            descripcion= req.body.descripcion;
-        }
+app.put('/libro/prestar/:id', async(req, res)=>{
 
-        let persona= null;
+    try {
+   
+        //pregunto si envio persona 
         if (req.body.persona_id) {
-            persona= req.body.persona_id;
+            //valido que exista esa persona
+            let query= 'SELECT * FROM `personas` WHERE `id`= ?';
+            let respuesta= await qy(query, [req.body.persona_id]);
+           
+            if (respuesta.length>0) {
+                //valido que el libro no este prestado
+                let query='SELECT * FROM `libros` WHERE `id`= ?';
+                let respuesta = await qy(query, [req.params.id]);
+                respuesta=respuesta.map(libros=>libros.persona_id);
+                
+                    if (respuesta[0]==null) {
+                        //envio a la DB
+                        query = 'UPDATE `libros` SET `persona_id`= ? WHERE `id` = ?';
+                        respuesta = await qy(query,  [req.body.persona_id, req.params.id]);
+                        res.status(200).send({"respuesta": respuesta.affectedRows});
+                        
+                    }else{
+                        res.status(413).send("Este libro se encuentra prestado, no se puede prestar hasta que no se devuelva") ;
+                    }
+
+           } else {
+                res.status(413).send("Esa persona no existe");
+           }
+
+        }else{
+            res.status(413).send("No eligiste nunguna persona");
         }
-
-        query = 'UPDATE `libros` SET `nombre` = ?, `descripcion`= ?,`categoria_id`= ?,`persona_id`= ? WHERE `id` = ?';
-        respuesta = await qy(query, [req.body.nombre, descripcion, req.body.categoria_id, persona, req.params.id]);
-
-        res.send({"respuesta": respuesta.affectedRows});
-        console.log(respuesta, 'hola');
-        res.status(200);
 
     } catch (error) {
         console.error(error.message);
         res.status(413).send({"Error": error.message});
-    }
-
-    next();
+     }
 });
 
-
-app.put('/libro/prestar/:id', async(req, res, next)=>{
+app.put('/libro/devolver/:id', async(req,res)=>{
 
     try {
    
-        //pregunto si envio persona si no le mando error
-        let persona;
-        if (!req.body.persona_id) {
-           persona= null;
-           res.status(200).send("No eligiste nunguna persona");
-        }
-        //valido por si no envio algo
-        if (req.body.persona_id) {
-            persona= req.body.persona_id;
-        }
-        //envio a la DB
-        query = 'UPDATE `libros` SET `persona_id`= ? WHERE `id` = ?';
-        respuesta = await qy(query,  [persona, req.params.id]);
-        res.send({"respuesta": respuesta.affectedRows});
-
-        res.status(200);
-   
-       } catch (error) {
-           console.error(error.message);
-           res.status(413).send({"Error": error.message});
-       }
-
-    next();
-});
-
-app.put('/libro/devolver/:id', async(req,res,next)=>{
-
-    try {
-   
-        let query='SELECT `persona_id` FROM `libros` WHERE `id`= ?';
+        let query='SELECT * FROM `libros` WHERE `id`= ?';
         let respuesta = await qy(query, [req.params.id]);
-        respuesta = null;
+      
+        //valido que exista el libro
+        if (respuesta.length>0) {
+            //validacion que este prestado
+            respuesta=respuesta.map(libros=>libros.persona_id);
+                if (respuesta[0]!=null) {
+                    respuesta=null;
+                    //envio a la DB
+                    query = 'UPDATE `libros` SET `persona_id`= ? WHERE `id` = ?';
+                    respuesta = await qy(query,  [respuesta, req.params.id]);
+                    res.status(200).send({"respuesta": respuesta.affectedRows}) 
+                }else{
+                    res.status(413).send('Este libro no ha sido prestado') ;
+                }
+
+        } else {
+            res.status(413).send('Este libro no existe') ;
+        }
         
-        //envio a la DB
-        query = 'UPDATE `libros` SET `persona_id`= ? WHERE `id` = ?';
-        respuesta = await qy(query,  [respuesta, req.params.id]);
-        res.send({"respuesta": respuesta.affectedRows});
-        res.status(200);
-   
        } catch (error) {
            console.error(error.message);
            res.status(413).send({"Error": error.message});
        }
 
-    next();
 
 });
 
-app.delete('/libro/:id', async(req,res,next)=>{
+app.delete('/libro/:id', async(req,res)=>{
 
     try {
 
-        let query='DELETE FROM `libros` WHERE `id`= ?';
+        //VALIDACIONES
+        let query='SELECT * FROM `libros` WHERE `id`= ?';
         let respuesta = await qy(query, [req.params.id]);
-        res.send({"respuesta": respuesta.affectedRows});
-        res.status(200);
+        //pregunto si existe el libro
+        if (respuesta.length>0) {
+            //valido qu no este prestado
+            respuesta=respuesta.map(libros=>libros.persona_id);
+                if (respuesta[0]==null){
+                    //envio a DB
+                    query='DELETE FROM `libros` WHERE `id`= ?';
+                    respuesta = await qy(query, [req.params.id]);
+                    res.status(200).send({"respuesta": respuesta.affectedRows});
+                }else{
+                    res.status(413).send('Ese libro esta prestado no se puede borrar');
+                }
+
+        } else {
+            res.status(413).send('Ese libro no existe');
+        }
    
        } catch (error) {
            console.error(error.message);
            res.status(413).send({"Error": error.message});
        }
-
-    next();
-
 });
-
 
 //CREO SERVIDOR
 app.listen(port, () => {
     console.log("Server listening on port:", port);
 });
+
