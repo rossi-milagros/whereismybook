@@ -250,6 +250,108 @@ app.delete('/libro/:id', async(req,res)=>{
 
 //API CATEGORIAS
 
+app.post('/categoria', async (req, res) =>{
+
+    try {
+
+        if(!req.body.nombre) {
+            res.status(413).send("El nombre de la categoria es obligatoria")
+        }
+
+        else {
+            let searchCategoria = 'SELECT id FROM categorias WHERE nombre = ?';
+            let resCategoria = await qy(searchCategoria, [req.body.nombre.toUpperCase()]);
+
+            if (resCategoria.length > 0) {
+                res.status(413).send("La Categoria ya existe");
+            }
+            else {
+                let sqlquery = 'INSERT INTO categorias (nombre) VALUES (?)';
+                let respuesta = await qy(sqlquery, [req.body.nombre.toUpperCase()]);
+                res.status(200).send({"Registro": respuesta});
+            }
+        
+    }
+}
+    catch(ex) {
+        console.log(ex);
+        res.status(413).send({"Error": ex.message});
+    }
+});
+
+// RUTA GET - MUESTRA TODAS LAS CATEGORIAS
+app.get('/categoria', async (req,res) =>{
+
+   try{
+        const sqlquery = 'SELECT * FROM categorias';
+        const respuesta = await qy(sqlquery);
+        res.status(200).send({"respuesta": respuesta});
+    }
+    catch(ex){
+        console.log(ex);
+        res.status(413).send({mensaje: ex.message});
+    }
+});
+// RUTA GET CON ID - MUESTRA UNA CATEGORIA DADO UN ID
+app.get('/categoria/:id', async (req, res) => {
+
+    try{
+
+        if (!req.params.id) {
+           res.status(413).send("Es necesario indicar el número ID"); 
+        }
+        else {
+            const sqlquery = 'SELECT * FROM categorias WHERE id = ?';
+            const respuesta = await qy(sqlquery, [req.params.id]);
+
+            if (respuesta.length > 0) {
+                res.send({"respuesta": respuesta});
+            }
+            else {
+                res.status(413).send("No hay categoria con el ID indicado");
+            }
+        }
+    }
+    catch(ex){
+        console.log(ex);
+        res.status(413).send({"Error": ex.message});
+    }
+});
+// RUTA DELETE, ELIMINA UNA CATEGORIA
+app.delete('/categoria/:id', async(req,res)=>{
+
+    try {
+
+        // SE BUSCAR CATEGORIA PARA VER SI EXISTE
+        let sqlquery = 'SELECT * FROM `categorias` WHERE `id`= ?';
+        let respuesta = await qy(sqlquery, [req.params.id]);
+       
+        if (respuesta.length > 0) {
+            //SE VALIDA QUE LA CATEGORIA A ELIMINAR NO ESTE ASOCIADA A UN LIBRO
+            let sqlquery_libro = 'SELECT * FROM `libros` WHERE `categoria_id`= ?';
+            let respuesta_libro = await qy(sqlquery_libro, [req.params.id]);
+            
+                if (!respuesta_libro[0]) {
+                   //SE ENVIA LA CONSULTA A LA BASE DE DATOS
+                   sqlquery = 'DELETE FROM `categorias` WHERE `id`= ?';
+                   respuesta = await qy(sqlquery, [req.params.id]);
+                   res.status(200).send({"respuesta:": respuesta.affectedRows});
+               
+                }else
+                {
+                    res.status(413).send('La Categoria esta asociada a un libro y no se puede borrar');
+                }
+
+        } else {
+            res.status(413).send('Esta categoria no existe');
+        }
+   
+       } catch (error) {
+           console.error(error.message);
+           res.status(413).send({"Error": error.message});
+       }
+});
+
 //CREO SERVIDOR
 app.listen(port, () => {
     console.log("Server listening on port:", port);
