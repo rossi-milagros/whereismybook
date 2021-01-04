@@ -1,9 +1,9 @@
 //INICIALIZACION
 const express = require('express');
-const jwt = require('jsonwebtoken');
 const util = require('util');
 const mysql = require('mysql');
-const handlebars = require('handlebars');
+//const jwt = require('jsonwebtoken');
+//const handlebars = require('handlebars');
 
 const app = express();
 
@@ -259,7 +259,7 @@ app.post('/persona', async (req, res) =>{
     
         respuesta = await qy(query, [req.body.nombre.toUpperCase(), req.body.apellido.toUpperCase(), req.body.email.toUpperCase(), req.body.alias.toUpperCase()]);
 
-        res.status(200).send({'respuesta': "Hay " + respuesta.insertId + " persona(s) registrada(s)"});
+        res.status(200).send({'respuesta': respuesta.insertId});
     }
     catch(e) {
         console.error(e.message);
